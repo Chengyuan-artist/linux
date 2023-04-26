@@ -20,9 +20,11 @@
 #include <linux/iommu.h>
 #include <linux/io-pgtable.h>
 #include <linux/mmu_notifier.h>
+#include <linux/kvm_types.h>
 
 #include "iommu-bits.h"
 
+static LIST_HEAD(riscv_iommu_domains);
 struct riscv_iommu_queue {
 	dma_addr_t base_dma;
 	void *base;
@@ -89,6 +91,8 @@ struct riscv_iommu_domain {
 	ioasid_t pscid;		// this is a domain property
 
 	pgd_t *pgd_root;	/* page table root pointer */
+
+	struct list_head list;
 };
 
 /* Private dev_iommu_priv object, device-domain relationship. */
@@ -150,4 +154,5 @@ void riscv_iommu_remove(struct device *dev);
 
 int riscv_iommu_sysfs_add(struct riscv_iommu_device *iommu);
 
+int riscv_iommu_msi_remap(gpa_t gpa, phys_addr_t hpa);
 #endif

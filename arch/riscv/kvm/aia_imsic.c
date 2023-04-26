@@ -15,6 +15,7 @@
 #include <linux/swab.h>
 #include <kvm/iodev.h>
 #include <asm/csr.h>
+#include "../../drivers/iommu/riscv/iommu.h"
 
 #define IMSIC_MAX_EIX	(IMSIC_MAX_ID / BITS_PER_TYPE(u64))
 
@@ -779,6 +780,7 @@ int kvm_riscv_vcpu_aia_imsic_update(struct kvm_vcpu *vcpu)
 		goto fail_free_vsfile_hgei;
 
 	/* TODO: Update the IOMMU mapping ??? */
+  riscv_iommu_msi_remap(vcpu->arch.aia_context.imsic_addr, new_vsfile_pa);
 
 	/* Update new IMSIC VS-file details in IMSIC context */
 	write_lock_irqsave(&imsic->vsfile_lock, flags);

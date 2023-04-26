@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/kvm_types.h>
 #include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -48,7 +49,7 @@ module_param(priq_length, int, 0644);
 MODULE_PARM_DESC(priq_length, "Page request interface queue length.");
 
 /* TODO: Enable MSI remapping */
-#define RISCV_IMSIC_BASE	0x28000000
+#define RISCV_IMSIC_BASE	0x08000000ULL
 
 /* 1 second */
 #define RISCV_IOMMU_TIMEOUT		riscv_timebase
@@ -633,6 +634,10 @@ static struct iommu_domain *riscv_iommu_domain_alloc(unsigned type)
 
 	mutex_init(&domain->lock);
 	INIT_LIST_HEAD(&domain->endpoints);
+
+	/* add it into riscv_iommu_domains*/
+	INIT_LIST_HEAD(&domain->list);
+	list_add(&domain->list, &riscv_iommu_domains);
 
 	return &domain->domain;
 }
@@ -1489,3 +1494,27 @@ int riscv_iommu_probe(struct device *dev, phys_addr_t reg_phys, size_t reg_size)
 
 	return ret;
 }
+
+int riscv_iommu_msi_remap(gpa_t gpa, phys_addr_t hpa)
+{
+	struct riscv_iommu_domain *domain;
+	uint64_t intn;
+
+	list_for_each_entry(domain, &riscv_iommu_domains, list) {
+		if (!domain->g_stage) {
+			continue;
+		}
+
+		// mutex_lock(&domain->lock);
+
+		intn = phys_to_pfn(gpa) & 0x0ffULL;
+
+		domain->msi_root[intn].msipte = pte_val(pfn_pte(
+			phys_to_pfn(hpa),
+			__pgprot(_PAGE_WRITE | _PAGE_READ | _PAGE_PRESENT)));
+
+		// mutex_unlock(&domain->lock);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(riscv_iommu_msi_remap);
